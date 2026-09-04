@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alain Villalonga Martinez — The Descent</title>
+<meta name="description" content="Portfolio of Alain Villalonga Martinez. Four projects: TaskFlow, Snip, Repo Pulse, and Ledger — an AI personal finance agent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#08070a;
+  --deep:#0d0b11;
+  --stone:#151119;
+  --gold:#d4a850;
+  --gold-hi:#f0cd88;
+  --gold-dim:#7d6338;
+  --bone:#efe9dd;
+  --bone-dim:#9a9287;
+  --display:'Cormorant Garamond', serif;
+  --ui:'Space Grotesk', sans-serif;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;background:var(--void);color:var(--bone);
+  font-family:var(--ui);font-weight:300;line-height:1.7;
+  overflow-x:hidden;-webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+a:focus-visible{outline:1px solid var(--gold);outline-offset:4px;}
+::selection{background:var(--gold);color:var(--void);}
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-track{background:var(--void);}
+::-webkit-scrollbar-thumb{background:var(--gold-dim);}
+
+/* ══ preloader ══ */
+#preloader{
+  position:fixed;inset:0;z-index:100;background:var(--void);
+  display:flex;align-items:flex-end;justify-content:space-between;
+  padding:clamp(1.5rem,5vw,3.5rem);
+  transition:opacity .9s ease,visibility .9s ease;
+}
+#preloader.done{opacity:0;visibility:hidden;}
+.pre-label{font-size:.7rem;letter-spacing:.22em;color:var(--gold-dim);text-transform:uppercase;}
+.pre-count{
+  font-family:var(--display);font-size:clamp(4rem,16vw,11rem);
+  font-weight:300;line-height:.8;color:var(--bone);font-variant-numeric:tabular-nums;
+}
+#pre-bar{position:absolute;bottom:0;left:0;height:1px;background:var(--gold);width:0%;transition:width .25s linear;}
+
+/* ══ fixed layers ══ */
+#scene-canvas{position:fixed;inset:0;z-index:0;display:block;}
+#vignette{
+  position:fixed;inset:0;z-index:2;pointer-events:none;
+  background:radial-gradient(ellipse 120% 90% at 50% 42%,transparent 20%,rgba(8,7,10,.55) 68%,rgba(8,7,10,.94) 100%);
+}
+#grain{
+  position:fixed;inset:-120%;z-index:3;pointer-events:none;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grainshift 6s steps(6) infinite;
+}
+@keyframes grainshift{
+  0%{transform:translate(0,0)} 20%{transform:translate(-3%,2%)}
+  40%{transform:translate(2%,-3%)} 60%{transform:translate(-2%,-2%)}
+  80%{transform:translate(3%,1%)} 100%{transform:translate(0,0)}
+}
+
+#cursor{
+  position:fixed;top:0;left:0;z-index:90;pointer-events:none;
+  width:26px;height:26px;margin:-13px 0 0 -13px;
+  border:1px solid var(--gold);border-radius:50%;
+  opacity:0;mix-blend-mode:difference;transition:opacity .3s ease;
+}
+@media (hover:none),(pointer:coarse){#cursor{display:none;}}
+
+.topbar{
+  position:fixed;top:0;left:0;right:0;z-index:40;
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:clamp(1.3rem,3.5vw,2.4rem) clamp(1.3rem,5vw,3.5rem);
+  font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--bone-dim);
+}
+.topbar strong{color:var(--bone);font-weight:500;}
+.topbar a{text-decoration:none;transition:color .3s;}
+.topbar a:hover{color:var(--gold);}
+
+#depth-rail{
+  position:fixed;left:clamp(1.3rem,3vw,2.6rem);top:50%;
+  transform:translateY(-50%);z-index:40;width:76px;pointer-events:none;
+}
+#depth-rail svg{width:100%;height:auto;overflow:visible;}
+#depth-rail .outline{fill:none;stroke:var(--gold-dim);stroke-width:.7;}
+#depth-rail .floor{stroke:var(--gold-dim);stroke-width:.4;opacity:.4;}
+#depth-rail .node{fill:var(--void);stroke:var(--gold-dim);stroke-width:.8;transition:all .5s ease;}
+#depth-rail .node.lit{fill:var(--gold);stroke:var(--gold-hi);}
+#depth-rail .caption{
+  margin-top:.7rem;font-size:.58rem;letter-spacing:.16em;
+  color:var(--gold-dim);text-transform:uppercase;text-align:center;
+}
+#depth-readout{color:var(--gold);font-variant-numeric:tabular-nums;}
+@media (max-width:1080px){#depth-rail{display:none;}}
+
+/* ══ hero ══ */
+.hero{
+  position:relative;z-index:5;min-height:100svh;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:0 clamp(1.3rem,5vw,3.5rem);
+}
+.hero-inner{max-width:60rem;}
+.hero-eyebrow{
+  font-size:.7rem;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:2rem;opacity:0;transform:translateY(14px);
+}
+.hero h1{
+  font-family:var(--display);font-weight:300;
+  font-size:clamp(3rem,10.5vw,9.5rem);line-height:.92;
+  letter-spacing:-.015em;margin:0;color:var(--bone);
+}
+.hero h1 .ln{display:block;overflow:hidden;}
+.hero h1 .ln > span{display:block;transform:translateY(105%);}
+.hero h1 em{font-style:italic;color:var(--gold-hi);}
+.hero-sub{
+  margin-top:2.4rem;max-width:38ch;color:var(--bone-dim);
+  font-size:1.02rem;opacity:0;transform:translateY(14px);
+}
+.hero-meta{
+  position:absolute;bottom:clamp(1.5rem,5vh,3rem);
+  left:clamp(1.3rem,5vw,3.5rem);right:clamp(1.3rem,5vw,3.5rem);
+  display:flex;justify-content:space-between;align-items:flex-end;
+  font-size:.68rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold-dim);opacity:0;
+}
+.scroll-hint{display:flex;align-items:center;gap:.7rem;}
+.scroll-hint i{
+  display:block;width:44px;height:1px;background:var(--gold-dim);
+  position:relative;overflow:hidden;font-style:normal;
+}
+.scroll-hint i::after{
+  content:'';position:absolute;inset:0;background:var(--gold-hi);
+  transform:translateX(-100%);animation:sweep 2.4s cubic-bezier(.6,0,.3,1) infinite;
+}
+@keyframes sweep{0%{transform:translateX(-100%)}60%,100%{transform:translateX(100%)}}
+
+.is-loaded .hero-eyebrow,.is-loaded .hero-sub{
+  opacity:1;transform:translateY(0);
+  transition:opacity .9s ease .35s,transform .9s cubic-bezier(.2,.8,.3,1) .35s;
+}
+.is-loaded .hero-sub{transition-delay:1.15s;}
+.is-loaded .hero-meta{opacity:1;transition:opacity 1s ease 1.5s;}
+.is-loaded .hero h1 .ln > span{transform:translateY(0);transition:transform 1.25s cubic-bezier(.16,1,.3,1);}
+.is-loaded .hero h1 .ln:nth-child(2) > span{transition-delay:.11s;}
+.is-loaded .hero h1 .ln:nth-child(3) > span{transition-delay:.22s;}
+
+/* ══ threshold ══ */
+.threshold{
+  position:relative;z-index:5;
+  padding:clamp(6rem,18vh,11rem) clamp(1.3rem,5vw,3.5rem);
+  border-top:1px solid rgba(212,168,80,.14);
+  background:linear-gradient(180deg,rgba(8,7,10,0) 0%,rgba(13,11,17,.9) 45%,var(--stone) 100%);
+}
+.threshold p{
+  font-family:var(--display);font-size:clamp(1.5rem,3.6vw,2.6rem);
+  font-weight:300;line-height:1.35;max-width:22ch;margin:0;color:var(--bone);
+}
+.threshold p span{color:var(--gold);font-style:italic;}
+
+/* ══ chambers ══ */
+main{position:relative;z-index:5;background:var(--stone);}
+.chamber{
+  position:relative;overflow:hidden;
+  padding:clamp(5rem,13vh,9rem) clamp(1.3rem,5vw,3.5rem);
+  border-top:1px solid rgba(212,168,80,.14);
+}
+.chamber:nth-child(even){background:var(--deep);}
+.ghost-numeral{
+  position:absolute;right:-2.5vw;top:50%;transform:translateY(-50%);
+  font-family:var(--display);font-weight:300;
+  font-size:clamp(14rem,34vw,32rem);line-height:.72;
+  color:rgba(212,168,80,.035);pointer-events:none;user-select:none;letter-spacing:-.04em;
+}
+.chamber-grid{
+  position:relative;max-width:74rem;margin:0 auto;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);
+  gap:clamp(2rem,6vw,5rem);align-items:start;
+}
+@media (max-width:840px){.chamber-grid{grid-template-columns:1fr;gap:2rem;}}
+
+.chamber-index{
+  display:flex;flex-direction:column;gap:1.4rem;
+  border-top:1px solid rgba(212,168,80,.28);padding-top:1.2rem;
+}
+.chamber-index .roman{font-family:var(--display);font-size:2rem;color:var(--gold);line-height:1;}
+.chamber-index .depth{font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold-dim);}
+
+.chamber-title{
+  font-family:var(--display);font-weight:400;
+  font-size:clamp(2.4rem,6vw,4.2rem);line-height:1;margin:0;letter-spacing:-.01em;
+}
+.chamber-role{
+  margin:.9rem 0 0;font-size:.72rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--gold);
+}
+.chamber-body{margin:1.9rem 0 0;max-width:56ch;color:var(--bone-dim);font-size:1.02rem;}
+.chamber-body b{color:var(--bone);font-weight:400;}
+
+.detail-table{margin:2.2rem 0 0;border-top:1px solid rgba(212,168,80,.16);}
+.detail-table .row{
+  display:grid;grid-template-columns:9.5rem 1fr;gap:1.2rem;
+  padding:.85rem 0;border-bottom:1px solid rgba(212,168,80,.1);font-size:.88rem;
+}
+.detail-table dt{
+  margin:0;color:var(--gold-dim);font-size:.66rem;
+  letter-spacing:.14em;text-transform:uppercase;padding-top:.28rem;
+}
+.detail-table dd{margin:0;color:var(--bone-dim);}
+@media (max-width:560px){.detail-table .row{grid-template-columns:1fr;gap:.25rem;}}
+
+.stack{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;padding:0;margin:1.8rem 0 0;}
+.stack li{
+  font-size:.72rem;letter-spacing:.05em;color:var(--bone-dim);
+  border:1px solid rgba(212,168,80,.3);padding:.28rem .7rem;
+}
+.stack li.key{border-color:var(--gold);color:var(--gold-hi);}
+
+.repo-link{
+  display:inline-flex;align-items:center;gap:.75rem;margin-top:2.2rem;
+  text-decoration:none;font-size:.74rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--gold-hi);
+}
+.repo-link i{
+  display:block;width:2.6rem;height:1px;background:var(--gold-dim);
+  transition:width .45s cubic-bezier(.2,.8,.3,1),background-color .45s;
+}
+.repo-link:hover i{width:4.4rem;background:var(--gold-hi);}
+
+.rv{opacity:0;transform:translateY(26px);}
+.chamber.seen .rv{
+  opacity:1;transform:translateY(0);
+  transition:opacity 1s ease,transform 1.05s cubic-bezier(.16,1,.3,1);
+}
+.chamber.seen .chamber-detail .rv{transition-delay:.14s;}
+
+/* ══ exit ══ */
+.exit{
+  position:relative;z-index:5;background:var(--void);
+  border-top:1px solid rgba(212,168,80,.14);
+  padding:clamp(6rem,16vh,10rem) clamp(1.3rem,5vw,3.5rem) 3rem;
+}
+.exit-inner{max-width:74rem;margin:0 auto;}
+.exit h2{font-family:var(--display);font-weight:300;font-size:clamp(2.4rem,7vw,5.5rem);line-height:1;margin:0;}
+.exit h2 em{font-style:italic;color:var(--gold-hi);}
+.exit p{max-width:44ch;color:var(--bone-dim);margin-top:1.6rem;}
+.exit-links{margin-top:3.2rem;border-top:1px solid rgba(212,168,80,.16);}
+.exit-links a{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:1.3rem 0;border-bottom:1px solid rgba(212,168,80,.12);text-decoration:none;
+  font-family:var(--display);font-size:clamp(1.3rem,3vw,2rem);
+  color:var(--bone);transition:color .4s,padding-left .4s;
+}
+.exit-links a span{
+  font-family:var(--ui);font-size:.66rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--gold-dim);transition:color .4s;
+}
+.exit-links a:hover{color:var(--gold-hi);padding-left:1rem;}
+.exit-links a:hover span{color:var(--gold);}
+.colophon{
+  margin-top:4rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;
+  font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);
+}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto;}
+  *,*::after{animation:none!important;transition-duration:.01ms!important;}
+  .rv{opacity:1;transform:none;}
+  .hero h1 .ln > span{transform:none;}
+  .hero-eyebrow,.hero-sub,.hero-meta{opacity:1;transform:none;}
+}
+</style>
+</head>
+<body>
+
+<div id="preloader">
+  <div class="pre-label">Excavating</div>
+  <div class="pre-count">0</div>
+  <div id="pre-bar"></div>
+</div>
+
+<canvas id="scene-canvas"></canvas>
+<div id="vignette"></div>
+<div id="grain"></div>
+<div id="cursor"></div>
+
+<header class="topbar">
+  <strong>Alain Villalonga Martinez</strong>
+  <a href="#exit">Contact</a>
+</header>
+
+<aside id="depth-rail">
+  <svg viewBox="0 0 76 66" aria-hidden="true">
+    <path class="outline" d="M38 3 L73 62 L3 62 Z"/>
+    <line class="floor" x1="22" y1="35" x2="54" y2="35"/>
+    <line class="floor" x1="17" y1="43" x2="59" y2="43"/>
+    <line class="floor" x1="12" y1="51" x2="64" y2="51"/>
+    <line class="floor" x1="7" y1="59" x2="69" y2="59"/>
+    <circle class="node" data-node="1" cx="38" cy="35" r="2.6"/>
+    <circle class="node" data-node="2" cx="38" cy="43" r="2.6"/>
+    <circle class="node" data-node="3" cx="38" cy="51" r="2.6"/>
+    <circle class="node" data-node="4" cx="38" cy="59" r="2.6"/>
+  </svg>
+  <div class="caption">Depth <span id="depth-readout">00</span></div>
+</aside>
+
+<section class="hero" id="hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">Software engineer — full-stack &amp; applied AI</p>
+    <h1>
+      <span class="ln"><span>Four rooms</span></span>
+      <span class="ln"><span>beneath</span></span>
+      <span class="ln"><span><em>the stone.</em></span></span>
+    </h1>
+    <p class="hero-sub">I build systems that hold up under inspection — real auth, real data models, and AI that never guesses a number it hasn't computed. Descend to see the work.</p>
+  </div>
+  <div class="hero-meta">
+    <div class="scroll-hint"><i></i> Scroll to descend</div>
+    <div>MMXXVI</div>
+  </div>
+</section>
+
+<section class="threshold">
+  <p>Anyone can stack a <span>façade</span>. The question is what's load-bearing underneath.</p>
+</section>
+
+<main>
+
+  <section class="chamber" id="c1" data-chamber="1">
+    <div class="ghost-numeral">I</div>
+    <div class="chamber-grid">
+      <div class="chamber-index rv">
+        <div class="roman">I</div>
+        <div class="depth">Chamber One</div>
+      </div>
+      <div class="chamber-detail">
+        <h2 class="chamber-title rv">TaskFlow</h2>
+        <p class="chamber-role rv">Full-stack SaaS application</p>
+        <p class="chamber-body rv">A multi-user project and task manager. Login issues a signed JWT, and <b>every query is scoped server-side to its owner</b> — one account cannot read or modify another's data even by typing an ID straight into the URL. Passwords are hashed with PBKDF2; nothing is stored in plain text.</p>
+        <dl class="detail-table rv">
+          <div class="row"><dt>Data model</dt><dd>Users own projects; projects own tasks, each carrying status, priority, and an optional due date.</dd></div>
+          <div class="row"><dt>Notable</dt><dd>Written against raw SQL rather than an ORM, so every query is visible and reviewable in the source.</dd></div>
+          <div class="row"><dt>Frontend</dt><dd>No framework, no build step — structured so each UI section maps cleanly onto a future React component.</dd></div>
+        </dl>
+        <ul class="stack rv"><li>Flask</li><li>SQLite</li><li>PyJWT</li><li>PBKDF2</li><li>Vanilla JS</li></ul>
+        <a class="repo-link rv" href="https://github.com/REPLACE-USERNAME/taskflow-saas" target="_blank" rel="noopener"><i></i>View repository</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="chamber" id="c2" data-chamber="2">
+    <div class="ghost-numeral">II</div>
+    <div class="chamber-grid">
+      <div class="chamber-index rv">
+        <div class="roman">II</div>
+        <div class="depth">Chamber Two</div>
+      </div>
+      <div class="chamber-detail">
+        <h2 class="chamber-title rv">Snip</h2>
+        <p class="chamber-role rv">URL shortener &amp; click analytics</p>
+        <p class="chamber-body rv">Turns a long URL into a six-character code, or a custom alias, and redirects on a single lookup. Codes come from a <b>cryptographically strong source</b> rather than an ordinary random function — predictable codes would let anyone walk the sequence and read other people's links.</p>
+        <dl class="detail-table rv">
+          <div class="row"><dt>Data model</dt><dd>Links keep a running counter for instant reads; a separate clicks table stores one timestamped row per visit for real history.</dd></div>
+          <div class="row"><dt>Charting</dt><dd>Click trends render as hand-drawn inline SVG sparklines, with no charting dependency.</dd></div>
+          <div class="row"><dt>Guardrails</dt><dd>URLs validated as absolute http(s); custom aliases checked against a reserved list so they can't shadow real routes.</dd></div>
+        </dl>
+        <ul class="stack rv"><li>Flask</li><li>SQLite</li><li>secrets</li><li>Inline SVG</li></ul>
+        <a class="repo-link rv" href="https://github.com/REPLACE-USERNAME/snip-url-shortener" target="_blank" rel="noopener"><i></i>View repository</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="chamber" id="c3" data-chamber="3">
+    <div class="ghost-numeral">III</div>
+    <div class="chamber-grid">
+      <div class="chamber-index rv">
+        <div class="roman">III</div>
+        <div class="depth">Chamber Three</div>
+      </div>
+      <div class="chamber-detail">
+        <h2 class="chamber-title rv">Repo Pulse</h2>
+        <p class="chamber-role rv">GitHub analytics dashboard</p>
+        <p class="chamber-body rv">Point it at any public repository and it pulls live data from the GitHub API — language breakdown, weekly commit activity, contributor rankings, open and closed issues and pull requests. <b>Up to five repositories can be compared side by side</b> with shared legends and a summary table.</p>
+        <dl class="detail-table rv">
+          <div class="row"><dt>Hard part</dt><dd>GitHub computes some statistics asynchronously and answers 202 while it works. The client polls with backoff and degrades gracefully instead of surfacing an error.</dd></div>
+          <div class="row"><dt>Rate limits</dt><dd>A five-minute per-repo cache keeps demos inside the 60/hour anonymous ceiling; adding a token raises it to 5,000.</dd></div>
+          <div class="row"><dt>Testing</dt><dd>Twelve unit tests run against recorded fixtures, so the suite needs no network access.</dd></div>
+        </dl>
+        <ul class="stack rv"><li>Flask</li><li>GitHub REST API</li><li>Plotly.js</li><li>pytest</li></ul>
+        <a class="repo-link rv" href="https://github.com/REPLACE-USERNAME/repo-pulse-dashboard" target="_blank" rel="noopener"><i></i>View repository</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="chamber" id="c4" data-chamber="4">
+    <div class="ghost-numeral">IV</div>
+    <div class="chamber-grid">
+      <div class="chamber-index rv">
+        <div class="roman">IV</div>
+        <div class="depth">Burial chamber</div>
+      </div>
+      <div class="chamber-detail">
+        <h2 class="chamber-title rv">Ledger</h2>
+        <p class="chamber-role rv">AI personal finance agent</p>
+        <p class="chamber-body rv">Built on a single rule: <b>the model decides what to do, deterministic Python does the math.</b> Ask whether you can afford a $2,500 trip in December without touching your emergency fund, and it chains real tools across your transaction history — then shows every tool it called, in order, with timings. It will never invent a figure it hasn't actually calculated.</p>
+        <dl class="detail-table rv">
+          <div class="row"><dt>Agent loop</dt><dd>Eight tools covering transaction lookup, balances, spending breakdowns, recurring-payment detection, period comparison, cash-flow forecasting, semantic search, and budget scenarios. Hand-written in roughly 120 lines rather than pulled from a framework.</dd></div>
+          <div class="row"><dt>Receipts</dt><dd>A vision model extracts line items from a photo; Python reconciles them against the total, matches the receipt to the right card transaction, and splits one charge across the categories it truly belongs to — apportioning sales tax proportionally.</dd></div>
+          <div class="row"><dt>Scenarios</dt><dd>"What if I buy a $35k car with $5k down?" becomes structured parameters, real amortization, and a check against actual cash flow. It correctly refuses scenarios you can't afford.</dd></div>
+          <div class="row"><dt>Verification</dt><dd>144 backend tests. Amortization checked against a known textbook value. A fake Anthropic API exercises the exact wire format, including tool calls, retries, and vision payloads.</dd></div>
+        </dl>
+        <ul class="stack rv"><li class="key">Claude (Anthropic API)</li><li>Starlette</li><li>Pydantic v2</li><li>PostgreSQL</li><li>Redis</li><li>pandas</li><li>scikit-learn</li><li>React</li><li>TypeScript</li><li>Docker</li></ul>
+        <a class="repo-link rv" href="https://github.com/REPLACE-USERNAME/ledger-ai-finance-agent" target="_blank" rel="noopener"><i></i>View repository</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="exit" id="exit">
+  <div class="exit-inner">
+    <h2>Back to <em>daylight.</em></h2>
+    <p>That's everything in the four chambers. I'm glad to walk through any of them in depth, or send the source over directly.</p>
+    <nav class="exit-links">
+      <a href="mailto:REPLACE-EMAIL@example.com">Email<span>Say hello</span></a>
+      <a href="https://github.com/REPLACE-USERNAME" target="_blank" rel="noopener">GitHub<span>All four repositories</span></a>
+      <a href="https://www.linkedin.com/in/REPLACE-USERNAME" target="_blank" rel="noopener">LinkedIn<span>Background &amp; history</span></a>
+    </nav>
+    <div class="colophon">
+      <span>Alain Villalonga Martinez</span>
+      <span>Built with Three.js</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── preloader ── */
+var pre = document.getElementById('preloader');
+var preCount = pre.querySelector('.pre-count');
+var preBar = document.getElementById('pre-bar');
+var pct = 0;
+var preTimer = setInterval(function(){
+  pct += Math.random() * 11 + 4;
+  if (pct >= 100){ pct = 100; clearInterval(preTimer);
+    setTimeout(function(){ pre.classList.add('done'); document.body.classList.add('is-loaded'); }, 420);
+  }
+  preCount.textContent = Math.floor(pct);
+  preBar.style.width = pct + '%';
+}, 110);
+
+/* ── cursor ── */
+var cursor = document.getElementById('cursor');
+if (window.matchMedia('(hover:hover) and (pointer:fine)').matches){
+  var cx=0, cy=0, ctx=0, cty=0, hot=false;
+  window.addEventListener('mousemove', function(e){ ctx=e.clientX; cty=e.clientY; cursor.style.opacity='1'; });
+  document.querySelectorAll('a').forEach(function(el){
+    el.addEventListener('mouseenter', function(){ hot = true; });
+    el.addEventListener('mouseleave', function(){ hot = false; });
+  });
+  (function trail(){
+    cx += (ctx-cx)*0.18; cy += (cty-cy)*0.18;
+    cursor.style.transform = 'translate('+cx+'px,'+cy+'px) scale('+(hot?1.9:1)+')';
+    cursor.style.backgroundColor = hot ? 'rgba(212,168,80,.18)' : 'transparent';
+    requestAnimationFrame(trail);
+  })();
+}
+
+/* ── reveal + depth rail ── */
+var nodes = document.querySelectorAll('#depth-rail .node');
+var readout = document.getElementById('depth-readout');
+if ('IntersectionObserver' in window){
+  var seenObs = new IntersectionObserver(function(en){
+    en.forEach(function(e){ if (e.isIntersecting) e.target.classList.add('seen'); });
+  }, {threshold:0.15});
+  var railObs = new IntersectionObserver(function(en){
+    en.forEach(function(e){
+      if (!e.isIntersecting) return;
+      var n = parseInt(e.target.getAttribute('data-chamber'), 10);
+      nodes.forEach(function(node){
+        node.classList.toggle('lit', parseInt(node.getAttribute('data-node'),10) <= n);
+      });
+      readout.textContent = (n*22 < 10 ? '0' : '') + (n*22);
+    });
+  }, {threshold:0.4});
+  document.querySelectorAll('.chamber').forEach(function(c){ seenObs.observe(c); railObs.observe(c); });
+} else {
+  document.querySelectorAll('.chamber').forEach(function(c){ c.classList.add('seen'); });
+}
+
+/* ── WebGL ── */
+var canvas = document.getElementById('scene-canvas');
+if (!window.THREE || !canvas) return;
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x08070a, 0.032);
+
+var camera = new THREE.PerspectiveCamera(38, window.innerWidth/window.innerHeight, 0.1, 300);
+camera.position.set(0, 2.1, 13);
+
+var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true});
+renderer.setClearColor(0x08070a, 1);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+/* procedural environment map — warm sky above, cold dark below, plus a sun disc
+   so the metal actually catches a specular highlight */
+function makeEnvMap(){
+  var c = document.createElement('canvas');
+  c.width = 512; c.height = 256;
+  var g = c.getContext('2d');
+  var grd = g.createLinearGradient(0,0,0,256);
+  grd.addColorStop(0.00,'#4a3a22');
+  grd.addColorStop(0.34,'#a07b3e');
+  grd.addColorStop(0.50,'#f2d79b');
+  grd.addColorStop(0.62,'#2b3d54');
+  grd.addColorStop(1.00,'#0a0810');
+  g.fillStyle = grd; g.fillRect(0,0,512,256);
+  var sun = g.createRadialGradient(150,96,2,150,96,56);
+  sun.addColorStop(0,'#fff6e0'); sun.addColorStop(1,'rgba(255,246,224,0)');
+  g.fillStyle = sun; g.beginPath(); g.arc(150,96,56,0,Math.PI*2); g.fill();
+  var tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.encoding = THREE.sRGBEncoding;
+  return new THREE.WebGLCubeRenderTarget(256).fromEquirectangularTexture(renderer, tex).texture;
+}
+var envMap = makeEnvMap();
+
+var stoneMat = new THREE.MeshStandardMaterial({
+  color:0xb8934f, metalness:0.82, roughness:0.34,
+  envMap:envMap, envMapIntensity:1.25, flatShading:true
+});
+var edgeMat = new THREE.LineBasicMaterial({color:0x3d2f1a, transparent:true, opacity:0.85});
+
+/* stepped pyramid — stacked courses read far better under raking light than a smooth cone */
+var monument = new THREE.Group();
+var STEPS = 15, BASE = 4.6, TOTAL_H = 3.9, stepH = TOTAL_H/STEPS;
+for (var i = 0; i < STEPS; i++){
+  var w = BASE * (1 - (i/STEPS) * 0.94);
+  var box = new THREE.BoxGeometry(w, stepH, w);
+  var m = new THREE.Mesh(box, stoneMat);
+  m.position.y = i*stepH - TOTAL_H/2 + stepH/2;
+  m.rotation.y = (i % 2 ? 1 : -1) * 0.006;
+  monument.add(m);
+  var ed = new THREE.LineSegments(new THREE.EdgesGeometry(box), edgeMat);
+  ed.position.copy(m.position); ed.rotation.copy(m.rotation);
+  monument.add(ed);
+}
+monument.rotation.y = Math.PI*0.18;
+scene.add(monument);
+
+var capstone = new THREE.Mesh(
+  new THREE.ConeGeometry(0.62, 0.78, 4),
+  new THREE.MeshStandardMaterial({
+    color:0xf0cd88, metalness:1.0, roughness:0.12,
+    envMap:envMap, envMapIntensity:2.0, flatShading:true,
+    emissive:0x50350c, emissiveIntensity:0.7
+  })
+);
+capstone.rotation.y = Math.PI/4;
+capstone.position.y = TOTAL_H/2 + 0.95;
+scene.add(capstone);
+
+var haloMat = new THREE.ShaderMaterial({
+  transparent:true, blending:THREE.AdditiveBlending, side:THREE.BackSide, depthWrite:false,
+  uniforms:{uColor:{value:new THREE.Color(0xf0cd88)}, uPower:{value:2.6}},
+  vertexShader:'varying vec3 vN; varying vec3 vP;\nvoid main(){ vN = normalize(normalMatrix*normal); vec4 mv = modelViewMatrix*vec4(position,1.0); vP = mv.xyz; gl_Position = projectionMatrix*mv; }',
+  fragmentShader:'uniform vec3 uColor; uniform float uPower; varying vec3 vN; varying vec3 vP;\nvoid main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(-vP))), uPower); gl_FragColor = vec4(uColor, f*0.85); }'
+});
+var halo = new THREE.Mesh(new THREE.ConeGeometry(1.05, 1.35, 4), haloMat);
+halo.rotation.y = Math.PI/4;
+halo.position.copy(capstone.position);
+scene.add(halo);
+
+var shaftMat = new THREE.MeshBasicMaterial({
+  color:0xd4a850, transparent:true, opacity:0.055,
+  blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide
+});
+var shaft = new THREE.Mesh(new THREE.ConeGeometry(2.6, 22, 24, 1, true), shaftMat);
+shaft.position.y = capstone.position.y + 10.5;
+scene.add(shaft);
+
+var grid = new THREE.GridHelper(150, 90, 0x6b552e, 0x241d13);
+grid.material.transparent = true;
+grid.material.opacity = 0.32;
+grid.position.y = -TOTAL_H/2 - 0.02;
+scene.add(grid);
+
+/* inverted ghost below the floor line — reads as a reflection without a render pass */
+var ghost = monument.clone();
+ghost.scale.y = -1;
+ghost.position.y = -TOTAL_H - 0.06;
+ghost.traverse(function(o){
+  if (o.isMesh){
+    o.material = new THREE.MeshBasicMaterial({color:0x5b4522, transparent:true, opacity:0.12, depthWrite:false});
+  } else if (o.isLineSegments){ o.visible = false; }
+});
+scene.add(ghost);
+
+var shards = new THREE.Group();
+var shardMat = new THREE.MeshStandardMaterial({
+  color:0xd4a850, metalness:0.95, roughness:0.25, envMap:envMap, envMapIntensity:1.6, flatShading:true
+});
+for (var s = 0; s < 22; s++){
+  var sh = new THREE.Mesh(new THREE.TetrahedronGeometry(0.055 + Math.random()*0.075), shardMat);
+  var ang = Math.random()*Math.PI*2, rad = 4.6 + Math.random()*3.2;
+  sh.position.set(Math.cos(ang)*rad, (Math.random()-0.35)*3.4, Math.sin(ang)*rad);
+  sh.userData = {ang:ang, rad:rad, spd:0.06 + Math.random()*0.12, bob:Math.random()*6};
+  shards.add(sh);
+}
+scene.add(shards);
+
+function makeStars(count, spread, size, color, opacity){
+  var pos = new Float32Array(count*3);
+  for (var i = 0; i < count; i++){
+    pos[i*3]   = (Math.random()-0.5)*spread;
+    pos[i*3+1] = Math.random()*spread*0.55;
+    pos[i*3+2] = (Math.random()-0.5)*spread;
+  }
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({
+    color:color, size:size, transparent:true, opacity:opacity, sizeAttenuation:true, depthWrite:false
+  }));
+}
+var starsNear = makeStars(340, 60, 0.075, 0xf0cd88, 0.75);
+var starsFar  = makeStars(600, 150, 0.14, 0x6fa3d8, 0.35);
+scene.add(starsNear); scene.add(starsFar);
+
+var key = new THREE.DirectionalLight(0xffe0ad, 3.1); key.position.set(6,7,4); scene.add(key);
+var rim = new THREE.DirectionalLight(0x3a6ea5, 2.4); rim.position.set(-7,1.5,-5); scene.add(rim);
+var under = new THREE.PointLight(0xb5502b, 2.2, 16); under.position.set(0,-1.6,2.4); scene.add(under);
+scene.add(new THREE.AmbientLight(0x1a1520, 1.0));
+
+var scrollY = window.scrollY, targetY = window.scrollY;
+window.addEventListener('scroll', function(){ targetY = window.scrollY; }, {passive:true});
+
+var px=0, py=0, ptx=0, pty=0;
+window.addEventListener('mousemove', function(e){
+  ptx = e.clientX/window.innerWidth - 0.5;
+  pty = e.clientY/window.innerHeight - 0.5;
+});
+
+window.addEventListener('resize', function(){
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+var clock = new THREE.Clock();
+(function render(){
+  requestAnimationFrame(render);
+  var dt = Math.min(clock.getDelta(), 0.05);
+  var t = clock.getElapsedTime();
+
+  scrollY += (targetY - scrollY) * 0.075;
+  var max = Math.max(document.body.scrollHeight - window.innerHeight, 1);
+  var p = Math.min(scrollY / max, 1);
+
+  px += (ptx-px)*0.05; py += (pty-py)*0.05;
+
+  if (!reduced){
+    camera.position.x = Math.sin(p*1.5)*5.6 + px*1.4;
+    camera.position.y = 2.1 - p*5.4 - py*0.9;
+    camera.position.z = 13 - p*3.2;
+    camera.lookAt(0, -p*2.2, 0);
+
+    monument.rotation.y = Math.PI*0.18 + t*0.055 + p*1.4;
+    ghost.rotation.y = monument.rotation.y;
+
+    capstone.rotation.y -= dt*0.42;
+    capstone.position.y = TOTAL_H/2 + 0.95 + Math.sin(t*0.75)*0.11;
+    halo.rotation.y = capstone.rotation.y;
+    halo.position.y = capstone.position.y;
+    haloMat.uniforms.uPower.value = 2.6 + Math.sin(t*1.3)*0.5;
+
+    shaft.rotation.y = t*0.1;
+    shaftMat.opacity = 0.055 + Math.sin(t*0.9)*0.018;
+
+    shards.children.forEach(function(sh){
+      sh.userData.ang += sh.userData.spd*dt;
+      sh.position.x = Math.cos(sh.userData.ang)*sh.userData.rad;
+      sh.position.z = Math.sin(sh.userData.ang)*sh.userData.rad;
+      sh.position.y += Math.sin(t + sh.userData.bob)*0.0016;
+      sh.rotation.x += dt*0.35; sh.rotation.y += dt*0.22;
+    });
+
+    starsNear.rotation.y = t*0.008;
+    starsFar.rotation.y = -t*0.004;
+    grid.material.opacity = 0.32 * (1 - p*0.7);
+  }
+
+  renderer.render(scene, camera);
+})();
+})();
+</script>
+
+</body>
+</html>
